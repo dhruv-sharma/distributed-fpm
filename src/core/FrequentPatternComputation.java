@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
 
-import org.apache.giraph.edge.Edge;
 import org.apache.giraph.graph.BasicComputation;
 import org.apache.giraph.graph.Vertex;
 import org.apache.hadoop.io.IntWritable;
@@ -24,13 +23,18 @@ public class FrequentPatternComputation
 		extends
 		BasicComputation<IntWritable, ItemVertexValue, NullWritable, FrequentPatternMessage> {
 
-	private static int MIN_SUPPORT = 2;
+	private static int DEFAULT_MIN_SUPPORT = 100;
 
 	@Override
 	public void compute(
 			Vertex<IntWritable, ItemVertexValue, NullWritable> vertex,
 			Iterable<FrequentPatternMessage> messages) throws IOException {
 
+		/**
+		 * Getting the minimum support value for the configuration.
+		 */
+		int MIN_SUPPORT = this.getConf().getInt(
+				CommonConstants.MINIMUM_CUPPORT_STRING, DEFAULT_MIN_SUPPORT);
 		/**
 		 * Messages for debugging purpose.
 		 */
@@ -264,22 +268,4 @@ public class FrequentPatternComputation
 		return overlappingList;
 	}
 
-	public void sendMessageToRelevantNeighbors(
-			Vertex<IntWritable, ItemVertexValue, NullWritable> vertex,
-			FrequentPatternMessage msg) {
-		for (Edge<IntWritable, NullWritable> edge : vertex.getEdges()) {
-			if (edge.getTargetVertexId().get() > vertex.getId().get()) {
-				this.sendMessage(edge.getTargetVertexId(), msg);
-				System.out.println("Sending Message --- From : "
-						+ vertex.getId().get() + " To: "
-						+ edge.getTargetVertexId().get() + " Sending Message :"
-						+ msg);
-			} else {
-				System.out.println("Not Sending Message --- From : "
-						+ vertex.getId().get() + " To: "
-						+ edge.getTargetVertexId().get() + " Sending Message :"
-						+ msg);
-			}
-		}
-	}
 }
