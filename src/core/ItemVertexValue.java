@@ -9,7 +9,6 @@ import java.util.Set;
 import org.apache.hadoop.io.Writable;
 import org.json.JSONArray;
 import org.json.JSONException;
-import org.json.JSONObject;
 
 /**
  * 
@@ -99,7 +98,7 @@ public class ItemVertexValue implements Writable {
 					.getJSONArray(TRANSACTION_LIST_INDEX);
 			for (int i = 0; i < txnListJSONArray.length(); i++) {
 				this.transactionList.add(new Transaction(txnListJSONArray
-						.getJSONObject(i).getInt("id")));
+						.getInt(i)));
 			}
 
 			/**
@@ -107,15 +106,19 @@ public class ItemVertexValue implements Writable {
 			 * through the input text line.
 			 */
 
-			JSONArray frequentPatternListJSONArray = itemVertexValueJSONArray
-					.getJSONArray(FREQUENT_PATTERNS_LIST_INDEX);
+			String frequentPatternListStringFormat = itemVertexValueJSONArray
+					.getString(FREQUENT_PATTERNS_LIST_INDEX);
+
+			JSONArray frequentPatternListJSONArray = new JSONArray(
+					frequentPatternListStringFormat);
+
 			for (int j = 0; j < frequentPatternListJSONArray.length(); j++) {
-				JSONObject fpJSONObject = frequentPatternListJSONArray
-						.getJSONObject(j);
+				JSONArray fpJSONObject = frequentPatternListJSONArray
+						.getJSONArray(j);
 				JSONArray vertexArray = fpJSONObject
-						.getJSONArray("transactionIds");
+						.getJSONArray(ItemsAndTransactionsPair.VERTEX_ID_INDEX);
 				JSONArray transactionArray = fpJSONObject
-						.getJSONArray("vertexIds");
+						.getJSONArray(ItemsAndTransactionsPair.TRANSACTION_ID_INDEX);
 				Set<Integer> vertexSet = new HashSet<Integer>(
 						vertexArray.length());
 				for (int i = 0; i < vertexArray.length(); i++) {

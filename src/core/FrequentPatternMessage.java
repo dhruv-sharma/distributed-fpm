@@ -9,7 +9,6 @@ import java.util.Set;
 import org.apache.hadoop.io.Writable;
 import org.json.JSONArray;
 import org.json.JSONException;
-import org.json.JSONObject;
 
 /**
  * Message class implemented for sharing messages across supersteps for the
@@ -51,12 +50,14 @@ public class FrequentPatternMessage implements Writable {
 			JSONArray objectArray = new JSONArray(strData);
 			JSONArray itemsAndTxnsArray = objectArray.getJSONArray(0);
 			for (int i = 0; i < itemsAndTxnsArray.length(); i++) {
-				JSONObject itemsAndTxnsPairObject = itemsAndTxnsArray
-						.getJSONObject(i);
+				String itemsAndTxnsPairObjectStringFormat = itemsAndTxnsArray
+						.getString(i);
+				JSONArray itemsAndTxnsPairObject = new JSONArray(
+						itemsAndTxnsPairObjectStringFormat);
 				JSONArray vertexArray = itemsAndTxnsPairObject
-						.getJSONArray("vertexIds");
+						.getJSONArray(ItemsAndTransactionsPair.VERTEX_ID_INDEX);
 				JSONArray transactionArray = itemsAndTxnsPairObject
-						.getJSONArray("transactionIds");
+						.getJSONArray(ItemsAndTransactionsPair.TRANSACTION_ID_INDEX);
 				Set<Integer> vertexSet = new HashSet<Integer>();
 				for (int j = 0; j < vertexArray.length(); j++) {
 					vertexSet.add(vertexArray.getInt(j));

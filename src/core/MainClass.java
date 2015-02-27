@@ -41,7 +41,9 @@ public class MainClass {
 		GiraphConfiguration fpMiningJobConf = new GiraphConfiguration();
 
 		fpMiningJobConf.setComputationClass(FrequentPatternComputation.class);
+
 		fpMiningJobConf.setVertexInputFormatClass(ItemVertexInputFormat.class);
+
 		fpMiningJobConf
 				.setVertexOutputFormatClass(IdWithValueTextOutputFormat.class);
 
@@ -51,6 +53,7 @@ public class MainClass {
 		// fpMiningJobConf.setLocalTestMode(true);
 		fpMiningJobConf.setLocalTestMode(Boolean.parseBoolean(cmd
 				.getOptionValue("l")));
+
 		// fpMiningJobConf.setWorkerConfiguration(1, 1, 10.0f);
 		fpMiningJobConf.setWorkerConfiguration(
 				Integer.parseInt(cmd.getOptionValue("wmin")),
@@ -58,11 +61,15 @@ public class MainClass {
 
 		fpMiningJobConf.setBoolean("giraph.SplitMasterWorker", false);
 
+		fpMiningJobConf.setCheckpointFrequency(1);
+
+		fpMiningJobConf.setMaxTaskAttempts(100);
+
+		System.out.println("***** Use Checkpointing: "
+				+ fpMiningJobConf.useCheckpointing());
+
 		fpMiningJobConf.setInt(CommonConstants.MINIMUM_CUPPORT_STRING,
 				Integer.parseInt(cmd.getOptionValue("minsup")));
-
-		System.out.println("Value of property:  giraph.SplitMasterWorker = "
-				+ fpMiningJobConf.getSplitMasterWorker());
 
 		GiraphJob fpMiningJob = new GiraphJob(fpMiningJobConf,
 				CommonConstants.FP_MINING_ALGOTIHHM_NAME);

@@ -60,6 +60,7 @@ public class ItemVertexInputFormat extends
 		@Override
 		protected IntWritable getId(JSONArray jsonVertex) throws JSONException,
 				IOException {
+			System.out.println("Reading Vertex Id: " + jsonVertex.getInt(0));
 			return new IntWritable(jsonVertex.getInt(0));
 		}
 
@@ -73,6 +74,7 @@ public class ItemVertexInputFormat extends
 						jsonTransactionArray.getInt(i));
 				value.addTransaction(currentTransaction);
 			}
+			System.out.println("Reading Vertex Value: " + value.toString());
 			return value;
 		}
 
@@ -94,6 +96,7 @@ public class ItemVertexInputFormat extends
 				edges.add(EdgeFactory.create(targetId, nullValue));
 
 			}
+			System.out.println("Edges: " + edges.toString());
 			return edges;
 		}
 
