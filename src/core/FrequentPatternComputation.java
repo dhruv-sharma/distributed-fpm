@@ -35,10 +35,16 @@ public class FrequentPatternComputation
 		 */
 		int MIN_SUPPORT = this.getConf().getInt(
 				CommonConstants.MINIMUM_CUPPORT_STRING, DEFAULT_MIN_SUPPORT);
+
 		/**
 		 * Messages for debugging purpose.
 		 */
 		System.out.println("******************************************");
+		System.out
+				.println("Worker Index: "
+						+ this.getWorkerContext().getMyWorkerIndex()
+						+ " Total Workers: "
+						+ this.getWorkerContext().getWorkerCount());
 		System.out.println("Superstep : " + getSuperstep() + " Vertex : "
 				+ vertex.getId().get());
 

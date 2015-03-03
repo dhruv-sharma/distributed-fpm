@@ -57,9 +57,20 @@ public class MainClass {
 		// fpMiningJobConf.setWorkerConfiguration(1, 1, 10.0f);
 		fpMiningJobConf.setWorkerConfiguration(
 				Integer.parseInt(cmd.getOptionValue("wmin")),
-				Integer.parseInt(cmd.getOptionValue("wmax")), 10.0f);
+				Integer.parseInt(cmd.getOptionValue("wmax")), 100.0f);
 
-		fpMiningJobConf.setBoolean("giraph.SplitMasterWorker", false);
+		// fpMiningJobConf.setBoolean("giraph.SplitMasterWorker", false);
+		fpMiningJobConf.setBoolean("giraph.SplitMasterWorker", true);
+
+		fpMiningJobConf.setBoolean("giraph.useMessageSizeEncoding", true);
+
+		fpMiningJobConf.setBoolean("giraph.useOutOfCoreGraph", true);
+
+		fpMiningJobConf.setBoolean("giraph.useOutOfCoreMessage", true);
+
+		fpMiningJobConf.setBoolean("giraph.isStaticGraph", true);
+
+		fpMiningJobConf.setInt("giraph.yarn.task.heap.mb", 2048);
 
 		fpMiningJobConf.setCheckpointFrequency(1);
 
