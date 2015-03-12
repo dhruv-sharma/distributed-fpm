@@ -3,8 +3,8 @@ package core;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.hadoop.io.Writable;
 import org.json.JSONArray;
@@ -19,34 +19,44 @@ public class ItemVertexValue implements Writable {
 
 	private static int SHOULD_PROPOGATE_INDEX = 0;
 
-	private static int TRANSACTION_LIST_INDEX = 1;
+	private static int TRANSACTION_IDS_LIST_INDEX = 1;
 
-	private static int FREQUENT_PATTERNS_LIST_INDEX = 2;
+	private static int VERTEX_IDS_LIST_INDEX = 2;
 
-	private Set<Transaction> transactionList = new HashSet<Transaction>();
+	private List<int[]> vertexIds = new ArrayList<int[]>();
+
+	private List<int[]> transactionIds = new ArrayList<int[]>();
 
 	private boolean shouldPropagate = true;
 
-	private Set<ItemsAndTransactionsPair> frequentPatters = new HashSet<ItemsAndTransactionsPair>();
-
-	public void addFrequentPattern(ItemsAndTransactionsPair pair) {
-		this.frequentPatters.add(pair);
+	public List<int[]> getVertexIds() {
+		return vertexIds;
 	}
 
-	public void addFrequentPatterns(Set<ItemsAndTransactionsPair> pair) {
-		this.frequentPatters.addAll(pair);
+	public void setVertexIds(List<int[]> vertexIds) {
+		this.vertexIds = vertexIds;
 	}
 
-	public Set<ItemsAndTransactionsPair> getFrequentPatters() {
-		return frequentPatters;
+	public boolean isShouldPropagate() {
+		return shouldPropagate;
 	}
 
-	public void setFrequentPatters(Set<ItemsAndTransactionsPair> frequentPatters) {
-		this.frequentPatters = frequentPatters;
+	public void setShouldPropagate(boolean shouldPropagate) {
+		this.shouldPropagate = shouldPropagate;
 	}
 
-	public Set<Transaction> getTransactionList() {
-		return transactionList;
+	public void setTransactionIds(List<int[]> transactionIds) {
+		this.transactionIds = transactionIds;
+	}
+
+	private void clear() {
+		this.vertexIds.clear();
+		this.transactionIds.clear();
+	}
+
+	public void addFrequentPattern(int[] vertices, int[] transactions) {
+		this.vertexIds.add(vertices);
+		this.transactionIds.add(transactions);
 	}
 
 	public void setPropagationStatus(boolean ps) {
@@ -57,24 +67,13 @@ public class ItemVertexValue implements Writable {
 		return this.shouldPropagate;
 	}
 
-	public Set<Integer> getTransactionIdList() {
-		Set<Integer> idList = new HashSet<Integer>();
-		for (Transaction txn : this.transactionList) {
-			idList.add(txn.getId());
-		}
-		return idList;
-	}
-
-	public void setTransactionList(Set<Transaction> transactionList) {
-		this.transactionList = transactionList;
-	}
-
-	public boolean addTransaction(Transaction txn) {
-		return this.transactionList.add(txn);
+	public int[] getTransactionIds() {
+		return transactionIds.get(0);
 	}
 
 	@Override
 	public void readFields(DataInput dataInput) throws IOException {
+		this.clear();
 		String inputLine = dataInput.readUTF();
 		try {
 
@@ -91,51 +90,38 @@ public class ItemVertexValue implements Writable {
 					.getBoolean(SHOULD_PROPOGATE_INDEX);
 
 			/**
-			 * Setting the transaction list from the JSON Array read through the
-			 * input text line.
+			 * Setting the list of transaction id arrays into the item vertex
+			 * value.
 			 */
-			JSONArray txnListJSONArray = itemVertexValueJSONArray
-					.getJSONArray(TRANSACTION_LIST_INDEX);
-			for (int i = 0; i < txnListJSONArray.length(); i++) {
-				this.transactionList.add(new Transaction(txnListJSONArray
-						.getInt(i)));
+			JSONArray txnIdsArrayList = itemVertexValueJSONArray
+					.getJSONArray(TRANSACTION_IDS_LIST_INDEX);
+			for (int i = 0; i < txnIdsArrayList.length(); i++) {
+				JSONArray txnIdsArray = txnIdsArrayList.getJSONArray(i);
+				int[] txnIds = new int[txnIdsArray.length()];
+				for (int j = 0; j < txnIdsArray.length(); j++) {
+					txnIds[j] = txnIdsArray.getInt(j);
+				}
+				this.transactionIds.add(i, txnIds);
 			}
 
 			/**
-			 * Setting the frequent pattern list from the JSON Array read
-			 * through the input text line.
+			 * Setting the list of vertex id arrays into the item vertex value.
 			 */
-
-			String frequentPatternListStringFormat = itemVertexValueJSONArray
-					.getString(FREQUENT_PATTERNS_LIST_INDEX);
-
-			JSONArray frequentPatternListJSONArray = new JSONArray(
-					frequentPatternListStringFormat);
-
-			for (int j = 0; j < frequentPatternListJSONArray.length(); j++) {
-				JSONArray fpJSONObject = frequentPatternListJSONArray
-						.getJSONArray(j);
-				JSONArray vertexArray = fpJSONObject
-						.getJSONArray(ItemsAndTransactionsPair.VERTEX_ID_INDEX);
-				JSONArray transactionArray = fpJSONObject
-						.getJSONArray(ItemsAndTransactionsPair.TRANSACTION_ID_INDEX);
-				Set<Integer> vertexSet = new HashSet<Integer>(
-						vertexArray.length());
-				for (int i = 0; i < vertexArray.length(); i++) {
-					vertexSet.add(vertexArray.getInt(i));
+			JSONArray vertexIdsArrayList = itemVertexValueJSONArray
+					.getJSONArray(VERTEX_IDS_LIST_INDEX);
+			for (int i = 0; i < vertexIdsArrayList.length(); i++) {
+				JSONArray vertexIdsArray = vertexIdsArrayList.getJSONArray(i);
+				int[] txnIds = new int[vertexIdsArray.length()];
+				for (int j = 0; j < vertexIdsArray.length(); j++) {
+					txnIds[j] = vertexIdsArray.getInt(j);
 				}
-				Set<Integer> transactionSet = new HashSet<Integer>(
-						transactionArray.length());
-				for (int k = 0; k < transactionArray.length(); k++) {
-					transactionSet.add(transactionArray.getInt(k));
-				}
-				ItemsAndTransactionsPair pair = new ItemsAndTransactionsPair(
-						vertexSet, transactionSet);
-				this.frequentPatters.add(pair);
+				this.vertexIds.add(i, txnIds);
 			}
+
 		} catch (JSONException e) {
 			e.printStackTrace();
 		}
+
 	}
 
 	@Override
@@ -144,14 +130,21 @@ public class ItemVertexValue implements Writable {
 		try {
 			itemVertexValueJSONArray.put(SHOULD_PROPOGATE_INDEX,
 					this.shouldPropagate);
-			itemVertexValueJSONArray.put(TRANSACTION_LIST_INDEX,
-					this.transactionList);
-			itemVertexValueJSONArray.put(FREQUENT_PATTERNS_LIST_INDEX,
-					this.frequentPatters);
+			itemVertexValueJSONArray.put(TRANSACTION_IDS_LIST_INDEX,
+					this.transactionIds);
+			itemVertexValueJSONArray.put(VERTEX_IDS_LIST_INDEX, this.vertexIds);
 		} catch (JSONException e) {
 			e.printStackTrace();
 		}
-		dataOut.writeUTF(itemVertexValueJSONArray.toString());
+
+		String itemVertexValueJSONString = itemVertexValueJSONArray.toString();
+		if (itemVertexValueJSONString.length() >= 16 * 1024) {
+			byte[] byteArray = itemVertexValueJSONString.getBytes("utf-8");
+			dataOut.writeShort(byteArray.length);
+			dataOut.write(byteArray);
+		} else {
+			dataOut.writeUTF(itemVertexValueJSONString);
+		}
 	}
 
 	@Override
@@ -161,10 +154,9 @@ public class ItemVertexValue implements Writable {
 		try {
 			itemVertexValueJSONArray.put(SHOULD_PROPOGATE_INDEX,
 					this.shouldPropagate);
-			itemVertexValueJSONArray.put(TRANSACTION_LIST_INDEX,
-					this.transactionList);
-			itemVertexValueJSONArray.put(FREQUENT_PATTERNS_LIST_INDEX,
-					this.frequentPatters);
+			itemVertexValueJSONArray.put(TRANSACTION_IDS_LIST_INDEX,
+					this.transactionIds);
+			itemVertexValueJSONArray.put(VERTEX_IDS_LIST_INDEX, this.vertexIds);
 		} catch (JSONException e) {
 			e.printStackTrace();
 		}

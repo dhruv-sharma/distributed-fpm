@@ -18,7 +18,6 @@ import org.json.JSONException;
 import com.google.common.collect.Lists;
 
 import core.ItemVertexValue;
-import core.Transaction;
 
 /**
  * 
@@ -60,7 +59,6 @@ public class ItemVertexInputFormat extends
 		@Override
 		protected IntWritable getId(JSONArray jsonVertex) throws JSONException,
 				IOException {
-			System.out.println("Reading Vertex Id: " + jsonVertex.getInt(0));
 			return new IntWritable(jsonVertex.getInt(0));
 		}
 
@@ -68,13 +66,16 @@ public class ItemVertexInputFormat extends
 		protected ItemVertexValue getValue(JSONArray jsonVertex)
 				throws JSONException, IOException {
 			ItemVertexValue value = new ItemVertexValue();
+			/**
+			 * Adding self to the frequent patterns list.
+			 */
 			JSONArray jsonTransactionArray = jsonVertex.getJSONArray(2);
+			int[] vertexIds = { jsonVertex.getInt(0) };
+			int[] transactionIds = new int[jsonTransactionArray.length()];
 			for (int i = 0; i < jsonTransactionArray.length(); i++) {
-				Transaction currentTransaction = new Transaction(
-						jsonTransactionArray.getInt(i));
-				value.addTransaction(currentTransaction);
+				transactionIds[i] = jsonTransactionArray.getInt(i);
 			}
-			System.out.println("Reading Vertex Value: " + value.toString());
+			value.addFrequentPattern(vertexIds, transactionIds);
 			return value;
 		}
 
@@ -94,9 +95,8 @@ public class ItemVertexInputFormat extends
 				IntWritable targetId;
 				targetId = new IntWritable(jsonEdgeArray.getInt(i));
 				edges.add(EdgeFactory.create(targetId, nullValue));
-
 			}
-			System.out.println("Edges: " + edges.toString());
+
 			return edges;
 		}
 

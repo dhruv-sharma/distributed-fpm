@@ -24,6 +24,11 @@ public class ItemsAndTransactionsPair implements Writable {
 
 	private Set<Integer> transactionIds = new HashSet<Integer>();
 
+	private void clear() {
+		this.vertexIds.clear();
+		this.transactionIds.clear();
+	}
+
 	public ItemsAndTransactionsPair(Set<Integer> vertexIds,
 			Set<Integer> transactionIds) {
 		super();
@@ -59,6 +64,7 @@ public class ItemsAndTransactionsPair implements Writable {
 
 	@Override
 	public void readFields(DataInput dataIn) throws IOException {
+		this.clear();
 		String line = dataIn.readUTF();
 		try {
 			JSONArray itemsAndTransactionsArray = new JSONArray(line);
@@ -89,7 +95,16 @@ public class ItemsAndTransactionsPair implements Writable {
 		} catch (JSONException e) {
 			e.printStackTrace();
 		}
-		dataOut.writeUTF(itemsandTransactionsArray.toString());
+		String itemsAndTransactionsArrayString = itemsandTransactionsArray
+				.toString();
+		if (itemsAndTransactionsArrayString.length() >= 16 * 1024) {
+			byte[] byteArray = itemsAndTransactionsArrayString
+					.getBytes("utf-8");
+			dataOut.writeShort(byteArray.length);
+			dataOut.write(byteArray);
+		} else {
+			dataOut.writeUTF(itemsAndTransactionsArrayString);
+		}
 	}
 
 	@Override

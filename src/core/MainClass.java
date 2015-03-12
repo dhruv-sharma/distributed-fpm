@@ -68,18 +68,27 @@ public class MainClass {
 
 		fpMiningJobConf.setBoolean("giraph.useOutOfCoreMessage", true);
 
-		fpMiningJobConf.setBoolean("giraph.isStaticGraph", true);
+		fpMiningJobConf.setInt("giraph.maxMessagesInMemory", 100000);
+
+		// fpMiningJobConf.setInt("giraph.numComputeThreads", 10);
+
+		// fpMiningJobConf.setBoolean("giraph.isStaticGraph", true);
+
+		fpMiningJobConf.setBoolean("giraph.vertex.resolver.create.on.msgs",
+				false);
+
+		fpMiningJobConf.setBoolean("giraph.useBigDataIOForMessages", true);
 
 		fpMiningJobConf.setInt("giraph.yarn.task.heap.mb", 2048);
+
+		fpMiningJobConf.setBoolean("giraph.cleanupCheckpointsAfterSuccess",
+				false);
 
 		fpMiningJobConf.setCheckpointFrequency(1);
 
 		fpMiningJobConf.setMaxTaskAttempts(100);
 
-		System.out.println("***** Use Checkpointing: "
-				+ fpMiningJobConf.useCheckpointing());
-
-		fpMiningJobConf.setInt(CommonConstants.MINIMUM_CUPPORT_STRING,
+		fpMiningJobConf.setInt(CommonConstants.MINIMUM_SUPPORT_STRING,
 				Integer.parseInt(cmd.getOptionValue("minsup")));
 
 		GiraphJob fpMiningJob = new GiraphJob(fpMiningJobConf,

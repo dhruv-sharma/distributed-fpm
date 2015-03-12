@@ -1,11 +1,12 @@
 package core;
 
 import java.io.IOException;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.List;
 
+import org.apache.giraph.edge.Edge;
 import org.apache.giraph.graph.BasicComputation;
 import org.apache.giraph.graph.Vertex;
+import org.apache.giraph.utils.MemoryUtils;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.NullWritable;
 
@@ -23,8 +24,6 @@ public class FrequentPatternComputation
 		extends
 		BasicComputation<IntWritable, ItemVertexValue, NullWritable, FrequentPatternMessage> {
 
-	private static int DEFAULT_MIN_SUPPORT = 100;
-
 	@Override
 	public void compute(
 			Vertex<IntWritable, ItemVertexValue, NullWritable> vertex,
@@ -34,19 +33,15 @@ public class FrequentPatternComputation
 		 * Getting the minimum support value for the configuration.
 		 */
 		int MIN_SUPPORT = this.getConf().getInt(
-				CommonConstants.MINIMUM_CUPPORT_STRING, DEFAULT_MIN_SUPPORT);
+				CommonConstants.MINIMUM_SUPPORT_STRING,
+				CommonConstants.DEFAULT_MIN_SUPPORT);
 
 		/**
 		 * Messages for debugging purpose.
 		 */
-		System.out.println("******************************************");
-		System.out
-				.println("Worker Index: "
-						+ this.getWorkerContext().getMyWorkerIndex()
-						+ " Total Workers: "
-						+ this.getWorkerContext().getWorkerCount());
 		System.out.println("Superstep : " + getSuperstep() + " Vertex : "
-				+ vertex.getId().get());
+				+ vertex.getId().get() + " "
+				+ MemoryUtils.getRuntimeMemoryStats());
 
 		/**
 		 * Getting the vertex id of the vertex for which the compute method is
@@ -72,9 +67,7 @@ public class FrequentPatternComputation
 		 * the superstep and forwarded to neighbor vertices at the end of this
 		 * superstep.
 		 */
-		FrequentPatternMessage messageToPropogate = new FrequentPatternMessage();
-
-		System.out.println("Vertex State Start: " + vertexValue.toString());
+		FrequentPatternMessage messageToPropagate = null;
 
 		if (currentSuperstep == 0) {
 			/*****************************************************/
@@ -94,39 +87,42 @@ public class FrequentPatternComputation
 			 * message to it's neighboring vertices.
 			 * 
 			 */
-			if (vertexValue.getTransactionList().size() < MIN_SUPPORT) {
+			if (vertexValue.getTransactionIds().length < MIN_SUPPORT) {
+
+				/**
+				 * This vertex should not propagate any messages since this
+				 * vertex itself is not frequent. Hence, setting the propagation
+				 * status as false.
+				 */
 				vertexValue.setPropagationStatus(false);
+
 				/**
 				 * Remove this vertex from the graph.
 				 */
-				// this.removeVertexRequest(vertex.getId());
+				this.removeVertexRequest(vertex.getId());
+
+				/**
+				 * Remove all the outgoing edges of this vertex from this graph.
+				 */
+				for (Edge<IntWritable, NullWritable> edge : vertex.getEdges()) {
+					// this.removeEdgesRequest(vertex.getId(),
+					// edge.getTargetVertexId());
+					vertex.removeEdges(edge.getTargetVertexId());
+				}
 			} else {
 
 				/**
 				 * List of transactions this item belongs to.
 				 */
-				Set<Integer> txnIdList = vertexValue.getTransactionIdList();
+				int[] txnIdList = vertexValue.getTransactionIds();
 
 				/**
 				 * Create a message object to propagate further. This message
 				 * will simply contain a single item and transaction list pair
 				 * (itself and it's own transaction list).
 				 */
-				messageToPropogate = createFirstMessage(vertexId, txnIdList);
+				messageToPropagate = createFirstMessage(vertexId, txnIdList);
 
-				/**
-				 * Updating the item's (vertice's) own frequent pattern list.
-				 * Since this item is frequent on it's own.
-				 */
-				vertexValue.addFrequentPatterns(messageToPropogate
-						.getItemsAndTxns());
-
-				/**
-				 * Sending the new messages to all the outgoing edges of the
-				 * current vertex.
-				 */
-				// this.sendMessageToAllEdges(vertex, messageToPropogate);
-				// this.sendMessageToRelevantNeighbors(vertex, toForward);
 			}
 		} else {
 			/*****************************************************/
@@ -136,13 +132,13 @@ public class FrequentPatternComputation
 				/**
 				 * List of transactions this item belongs to.
 				 */
-				Set<Integer> currentVertexTxnIdList = vertexValue
-						.getTransactionIdList();
+				int[] currentVertexTransactions = vertexValue
+						.getTransactionIds();
 
 				/**
 				 * Create a message object to propagate further if required.
 				 */
-				messageToPropogate = new FrequentPatternMessage();
+				messageToPropagate = new FrequentPatternMessage();
 
 				/**
 				 * Iterate over each incoming message and find the overlap of
@@ -152,89 +148,77 @@ public class FrequentPatternComputation
 				for (FrequentPatternMessage currentIncomingMessage : messages) {
 
 					/**
-					 * Message for debugging purpose.
-					 */
-					System.out.println("Incoming Message: "
-							+ currentIncomingMessage);
-
-					/**
 					 * Getting the list of items and transactions pairs which
 					 * are the part of the current incoming message.
 					 */
-					Set<ItemsAndTransactionsPair> list = currentIncomingMessage
-							.getItemsAndTxns();
+					List<int[]> vertexIdArrayList = currentIncomingMessage
+							.getVertexIds();
+					List<int[]> transactionIdArrayList = currentIncomingMessage
+							.getTransactionIds();
 
 					/**
 					 * Iterating over each pair of items and transactions
 					 * extracted.
 					 */
-					for (ItemsAndTransactionsPair pair : list) {
+					for (int i = 0; i < transactionIdArrayList.size(); i++) {
+
+						int[] vertices = vertexIdArrayList.get(i);
+						int[] transactions = transactionIdArrayList.get(i);
 
 						/**
 						 * Find Overlap between the incoming messages and the
 						 * current vertices transactions.
 						 */
-						Set<Integer> currentMessagePairTxnIdList = pair
-								.getTransactionIds();
+						int overlapSize = getOverlapSize(
+								currentVertexTransactions, transactions);
 
-						/**
-						 * Finding the overlap between the current item's
-						 * transaction list and the current items and
-						 * transactions pair's transaction list.
-						 */
-						Set<Integer> overlappingTxnIdList = getOverlappingList(
-								currentVertexTxnIdList,
-								currentMessagePairTxnIdList);
+						if (overlapSize >= MIN_SUPPORT
+								&& vertices.length == currentSuperstep) {
 
-						/**
-						 * If the cardinality of the overlapping set between
-						 * them is greater than or equal to the minimum support
-						 * then they are a frequent itemset.
-						 */
-						if (overlappingTxnIdList.size() >= MIN_SUPPORT) {
+							int[] overlappingTransactions = getOverlap(
+									currentVertexTransactions, transactions,
+									overlapSize);
 
-							Set<Integer> msgItemIdList = pair.getVertexIds();
+							int[] messageVertices = new int[vertices.length + 1];
+
+							for (int k = 0; k < vertices.length; k++) {
+								messageVertices[k] = vertices[k];
+							}
+
+							messageVertices[vertices.length] = vertexId;
+
+							messageToPropagate.addFrequentPattern(
+									messageVertices, overlappingTransactions);
+
+							vertexValue.addFrequentPattern(messageVertices,
+									overlappingTransactions);
+
+						} else {
 
 							/**
-							 * Add Vertices and Transaction Pairs to the message
-							 * to forward.
+							 * Remove the edge from the graph.
 							 */
-							if (msgItemIdList.size() == currentSuperstep) {
-								/**
-								 * adding the vertex id to the list of item ids.
-								 */
-								msgItemIdList.add(vertexId);
-
-								ItemsAndTransactionsPair itemsAndTxnsPairToAdd = new ItemsAndTransactionsPair(
-										msgItemIdList, overlappingTxnIdList);
-
-								messageToPropogate
-										.addItemAndTransactionPair(itemsAndTxnsPairToAdd);
+							if (currentSuperstep == 1) {
+								IntWritable sourceId = new IntWritable(
+										vertices[0]);
+								this.removeEdgesRequest(sourceId,
+										vertex.getId());
 							}
 						}
 					}
 				}
-
-				vertexValue.addFrequentPatterns(messageToPropogate
-						.getItemsAndTxns());
-
-				System.out.println("Vertex State End: "
-						+ vertexValue.toString());
-
 			}
-
 		}
-
-		System.out.println("******************************************");
 
 		/**
 		 * Send this message only in case the message is not empty. If the
 		 * message is empty there is no sense in forwarding it.
 		 */
-		if (!messageToPropogate.isEmpty()) {
-			this.sendMessageToAllEdges(vertex, messageToPropogate);
+		if (messageToPropagate != null && !messageToPropagate.isEmpty()) {
+			this.sendMessageToAllEdges(vertex, messageToPropagate);
+		} else {
+			vertex.getValue().setPropagationStatus(false);
 		}
-
 		/**
 		 * Halt the vertex after computation so that it is not active during the
 		 * next super-step.
@@ -243,35 +227,57 @@ public class FrequentPatternComputation
 	}
 
 	public static FrequentPatternMessage createFirstMessage(int vertexId,
-			Set<Integer> txnIdList) {
+			int[] txnIdList) {
 		FrequentPatternMessage firstMessage = new FrequentPatternMessage();
-
-		Set<Integer> selfIdSet = new HashSet<Integer>();
-		selfIdSet.add(vertexId);
-		ItemsAndTransactionsPair pair = new ItemsAndTransactionsPair(selfIdSet,
-				txnIdList);
-		firstMessage.addItemAndTransactionPair(pair);
+		int[] vertexIds = { vertexId };
+		firstMessage.addFrequentPattern(vertexIds, txnIdList);
 		return firstMessage;
 	}
 
-	public static Set<Integer> getOverlappingList(Set<Integer> list1,
-			Set<Integer> list2) {
-		Set<Integer> overlappingList = new HashSet<Integer>();
-		Set<Integer> toIterate;
-		Set<Integer> toCheck;
-		if (list1.size() < list2.size()) {
-			toIterate = list1;
-			toCheck = list2;
-		} else {
-			toIterate = list2;
-			toCheck = list1;
-		}
-		for (Integer id : toIterate) {
-			if (toCheck.contains(id)) {
-				overlappingList.add(id);
+	public static int getOverlapSize(int[] a, int[] b) {
+		int index1 = 0;
+		int index2 = 0;
+		int newSize = 0;
+		while (true) {
+			if (a[index1] < b[index2]) {
+				index1++;
+			} else if (a[index1] > b[index2]) {
+				index2++;
+			} else {
+				newSize++;
+				index1++;
+				index2++;
+			}
+			if (index1 >= a.length || index2 >= b.length) {
+				break;
 			}
 		}
-		return overlappingList;
+		return newSize;
 	}
 
+	public static int[] getOverlap(int[] a, int[] b, int overlapSize) {
+
+		int index1 = 0;
+		int index2 = 0;
+		int[] overlap = new int[overlapSize];
+		int overlapIndex = 0;
+
+		while (true) {
+			if (a[index1] < b[index2]) {
+				index1++;
+			} else if (a[index1] > b[index2]) {
+				index2++;
+			} else {
+				overlap[overlapIndex] = a[index1];
+				overlapIndex++;
+				index1++;
+				index2++;
+			}
+			if (index1 >= a.length || index2 >= b.length) {
+				break;
+			}
+		}
+
+		return overlap;
+	}
 }
